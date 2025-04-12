@@ -1,0 +1,2525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>派大星跑酷冒险</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+            background-color: #1a75ff;
+            touch-action: none;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #game-canvas {
+            display: block;
+            background-color: #1a75ff;
+        }
+        
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+        }
+        
+        #game-over-screen {
+            display: none;
+        }
+        
+        .title {
+            color: #ffff00;
+            font-size: 48px;
+            text-shadow: 3px 3px 0 #ff6600, -3px -3px 0 #ff6600, 3px -3px 0 #ff6600, -3px 3px 0 #ff6600;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .button {
+            padding: 15px 30px;
+            font-size: 24px;
+            background-color: #ff6600;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 10px;
+            box-shadow: 0 5px 0 #cc5200;
+            transition: all 0.1s;
+        }
+        
+        .button:hover {
+            background-color: #ff8533;
+        }
+        
+        .button:active {
+            transform: translateY(5px);
+            box-shadow: none;
+        }
+        
+        #score-display, #high-score-display, #game-over-score {
+            color: white;
+            font-size: 24px;
+            margin: 10px;
+            text-align: center;
+        }
+        
+        #controls-info {
+            color: white;
+            font-size: 18px;
+            margin-top: 20px;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            z-index: 5;
+            display: none;
+        }
+        
+        .mobile-button {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(255, 102, 0, 0.6);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            color: white;
+            user-select: none;
+        }
+        
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 24px;
+            z-index: 5;
+        }
+        
+        #coin-display {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        #coin-icon {
+            width: 25px;
+            height: 25px;
+            background-color: #ffff00;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid white;
+        }
+        
+        #power-up-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+            display: none;
+            z-index: 5;
+        }
+        
+        @media (max-width: 768px) {
+            .title {
+                font-size: 32px;
+            }
+            
+            .button {
+                padding: 12px 24px;
+                font-size: 20px;
+            }
+            
+            #controls-info {
+                font-size: 14px;
+            }
+            
+            #mobile-controls {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="hud">
+            <div id="coin-display">
+                <div id="coin-icon"></div>
+                <span id="coins">0</span>
+            </div>
+            <div id="score">得分: 0</div>
+        </div>
+        
+        <div id="power-up-indicator">道具效果剩余: <span id="power-up-time">0</span>秒</div>
+        
+        <div id="start-screen">
+            <h1 class="title">派大星跑酷冒险</h1>
+            <button id="start-button" class="button">开始游戏</button>
+            <div id="high-score-display">最高分: 0</div>
+            <div id="controls-info">
+                电脑控制: ↑或W (跳跃), ↓或S (下滑), ←或A (左移), →或D (右移), 空格 (特殊动作)<br>
+                移动设备: 点击屏幕左右移动, 上下滑动屏幕进行跳跃和下滑
+            </div>
+        </div>
+        
+        <div id="game-over-screen">
+            <h1 class="title">游戏结束</h1>
+            <div id="game-over-score">得分: 0</div>
+            <button id="restart-button" class="button">再玩一次</button>
+            <button id="main-menu-button" class="button">返回主菜单</button>
+        </div>
+        
+        <div id="mobile-controls">
+            <div id="mobile-left" class="mobile-button">←</div>
+            <div id="mobile-jump" class="mobile-button">↑</div>
+            <div id="mobile-slide" class="mobile-button">↓</div>
+            <div id="mobile-right" class="mobile-button">→</div>
+            <div id="mobile-action" class="mobile-button">★</div>
+        </div>
+    </div>
+    
+    <script>
+        // 游戏主逻辑
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 设置画布尺寸为窗口大小
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            
+            // 游戏状态
+            const GAME_STATE = {
+                START_SCREEN: 0,
+                PLAYING: 1,
+                GAME_OVER: 2
+            };
+            
+            let currentState = GAME_STATE.START_SCREEN;
+            let score = 0;
+            let collectedCoinsCount = 0; // 用于记录收集的硬币总数
+            let highScore = localStorage.getItem('highScore') || 0;
+            let coins = [];
+            let gameSpeed = 5;
+            const gravity = 0.5;
+            let scrollOffset = 0;
+            
+            // UI元素
+            const startScreen = document.getElementById('start-screen');
+            const gameOverScreen = document.getElementById('game-over-screen');
+            const startButton = document.getElementById('start-button');
+            const restartButton = document.getElementById('restart-button');
+            const mainMenuButton = document.getElementById('main-menu-button');
+            const scoreDisplay = document.getElementById('score');
+            const gameOverScoreDisplay = document.getElementById('game-over-score');
+            const highScoreDisplay = document.getElementById('high-score-display');
+            const coinsDisplay = document.getElementById('coins');
+            const powerUpIndicator = document.getElementById('power-up-indicator');
+            const powerUpTimeDisplay = document.getElementById('power-up-time');
+            
+            // 更新高分显示
+            highScoreDisplay.textContent = `最高分: ${highScore}`;
+            
+            // 移动控制按钮
+            const mobileLeft = document.getElementById('mobile-left');
+            const mobileRight = document.getElementById('mobile-right');
+            const mobileJump = document.getElementById('mobile-jump');
+            const mobileSlide = document.getElementById('mobile-slide');
+            const mobileAction = document.getElementById('mobile-action');
+            
+            // 场景数据
+            const SCENES = [
+                {
+                    name: "比基尼海滩",
+                    bgColor: "#1a75ff",
+                    floorColor: "#f7e26b",
+                    obstacles: ["海胆", "水母", "章鱼"],
+                    decorations: ["贝壳", "海星", "海藻"]
+                },
+                {
+                    name: "蟹堡王",
+                    bgColor: "#ff9933",
+                    floorColor: "#cc6600",
+                    obstacles: ["汉堡塔", "油炸锅", "章鱼哥"],
+                    decorations: ["菜单", "餐桌", "收银台"]
+                },
+                {
+                    name: "水母田",
+                    bgColor: "#cc66ff",
+                    floorColor: "#9933ff",
+                    obstacles: ["水母", "岩石", "海沟"],
+                    decorations: ["水母灯", "海草", "珊瑚"]
+                }
+            ];
+            
+            let currentScene = 0;
+            
+            // 玩家(派大星)
+            const player = {
+                x: canvas.width / 4,
+                y: canvas.height - 150,
+                width: 60,
+                height: 80,
+                velY: 0,
+                velX: 0,
+                speed: 5,
+                jumpForce: -15,
+                isJumping: false,
+                isSliding: false,
+                isSpecialAction: false,
+                direction: 1, // 1右 -1左
+                powerUp: null,
+                powerUpTime: 0,
+                invincible: false,
+                expression: "normal", // normal, happy, scared
+                
+                update() {
+                    // 重力
+                    this.velY += gravity;
+                    this.y += this.velY;
+                    this.x += this.velX;
+                    
+                    // 地面碰撞检测
+                    if (this.y > canvas.height - this.height - 40) {
+                        this.y = canvas.height - this.height - 40;
+                        this.velY = 0;
+                        this.isJumping = false;
+                    }
+                    
+                    // 左右边界
+                    if (this.x < 50) {
+                        this.x = 50;
+                    }
+                    if (this.x > canvas.width / 2) {
+                        this.x = canvas.width / 2;
+                    }
+                    
+                    // 下滑动作
+                    if (this.isSliding) {
+                        this.height = 40;
+                    } else {
+                        this.height = 80;
+                    }
+                    
+                    // 特殊动作动画
+                    if (this.isSpecialAction) {
+                        if (Math.random() > 0.5) {
+                            this.expression = "happy";
+                        } else {
+                            this.expression = "normal";
+                        }
+                    }
+                    
+                    // 道具效果倒计时
+                    if (this.powerUp) {
+                        this.powerUpTime--;
+                        if (this.powerUpTime <= 0) {
+                            this.powerUp = null;
+                            this.invincible = false;
+                            this.width = 60;
+                            this.height = 80;
+                            powerUpIndicator.style.display = 'none';
+                        } else {
+                            powerUpTimeDisplay.textContent = Math.ceil(this.powerUpTime / 60);
+                        }
+                    }
+                },
+                
+                jump() {
+                    if (!this.isJumping) {
+                        this.velY = this.jumpForce;
+                        this.isJumping = true;
+                        this.isSliding = false;
+                        playSound("jump");
+                    }
+                },
+                
+                slide() {
+                    if (!this.isJumping) {
+                        this.isSliding = true;
+                        setTimeout(() => {
+                            this.isSliding = false;
+                        }, 1000);
+                        playSound("slide");
+                    }
+                },
+                
+                moveLeft() {
+                    this.velX = -this.speed;
+                    this.direction = -1;
+                },
+                
+                moveRight() {
+                    this.velX = this.speed;
+                    this.direction = 1;
+                },
+                
+                stopMoving() {
+                    this.velX = 0;
+                },
+                
+                specialAction() {
+                    if (!this.isSpecialAction) {
+                        this.isSpecialAction = true;
+                        this.expression = "happy";
+                        
+                        // 检查是否在互动物体附近
+                        const nearbyInteractable = interactables.find(item => 
+                            Math.abs(this.x - item.x + scrollOffset) < 100);
+                        
+                        if (nearbyInteractable) {
+                            nearbyInteractable.interact();
+                        }
+                        
+                        setTimeout(() => {
+                            this.isSpecialAction = false;
+                            this.expression = "normal";
+                        }, 1000);
+                        
+                        playSound("special");
+                    }
+                },
+                
+                activatePowerUp(type) {
+                    this.powerUp = type;
+                    this.powerUpTime = 600; // 10秒
+                    
+                    switch(type) {
+                        case "speedBoost":
+                            gameSpeed = 8;
+                            powerUpIndicator.textContent = "道具效果: 加速中! 剩余: " + Math.ceil(this.powerUpTime / 60) + "秒";
+                            powerUpIndicator.style.backgroundColor = "rgba(255, 165, 0, 0.7)";
+                            break;
+                        case "invincibility":
+                            this.invincible = true;
+                            powerUpIndicator.textContent = "道具效果: 无敌中! 剩余: " + Math.ceil(this.powerUpTime / 60) + "秒";
+                            powerUpIndicator.style.backgroundColor = "rgba(0, 255, 255, 0.7)";
+                            break;
+                        case "magnet":
+                            powerUpIndicator.textContent = "道具效果: 硬币磁铁! 剩余: " + Math.ceil(this.powerUpTime / 60) + "秒";
+                            powerUpIndicator.style.backgroundColor = "rgba(255, 0, 255, 0.7)";
+                            break;
+                        case "giant":
+                            this.width = 90;
+                            this.height = 120;
+                            powerUpIndicator.textContent = "道具效果: 变大! 剩余: " + Math.ceil(this.powerUpTime / 60) + "秒";
+                            powerUpIndicator.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+                            break;
+                    }
+                    
+                    powerUpIndicator.style.display = 'block';
+                    playSound("powerup");
+                },
+                
+                draw() {
+                    ctx.save();
+                    
+                    // 受伤或无敌状态闪烁
+                    if (this.invincible && Math.floor(Date.now() / 100) % 2) {
+                        ctx.globalAlpha = 0.7;
+                    }
+                    
+                    // 派大星的身体 - 粉色星星
+                    ctx.fillStyle = "#ffb8e6"; // 粉红色
+                    
+                    if (this.isSliding) {
+                        // 滑行姿势 - 更扁平
+                        drawStar(this.x, this.y + this.height - 20, 5, this.width / 2, this.height / 3);
+                    } else {
+                        // 正常姿势 - 星星
+                        drawStar(this.x, this.y + this.height / 2, 5, this.width / 2, this.height / 2);
+                    }
+                    
+                    // 眼睛
+                    ctx.fillStyle = "white";
+                    const eyeSize = this.width / 5;
+                    
+                    // 左眼
+                    ctx.beginPath();
+                    ctx.arc(this.x - eyeSize, this.y + this.height / 3, eyeSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 右眼
+                    ctx.beginPath();
+                    ctx.arc(this.x + eyeSize, this.y + this.height / 3, eyeSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 瞳孔
+                    ctx.fillStyle = "black";
+                    
+                    // 根据表情改变瞳孔
+                    if (this.expression === "normal") {
+                        ctx.beginPath();
+                        ctx.arc(this.x - eyeSize, this.y + this.height / 3, eyeSize / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.beginPath();
+                        ctx.arc(this.x + eyeSize, this.y + this.height / 3, eyeSize / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (this.expression === "happy") {
+                        // 开心的眼睛 - 弯曲的线条
+                        ctx.lineWidth = 3;
+                        
+                        ctx.beginPath();
+                        ctx.arc(this.x - eyeSize, this.y + this.height / 3 - eyeSize/2, eyeSize/2, 0.1 * Math.PI, 0.9 * Math.PI, false);
+                        ctx.stroke();
+                        
+                        ctx.beginPath();
+                        ctx.arc(this.x + eyeSize, this.y + this.height / 3 - eyeSize/2, eyeSize/2, 0.1 * Math.PI, 0.9 * Math.PI, false);
+                        ctx.stroke();
+                    } else if (this.expression === "scared") {
+                        // 惊恐的眼睛 - 大大的圆瞳孔
+                        ctx.beginPath();
+                        ctx.arc(this.x - eyeSize, this.y + this.height / 3, eyeSize * 0.7, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.beginPath();
+                        ctx.arc(this.x + eyeSize, this.y + this.height / 3, eyeSize * 0.7, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // 嘴巴
+                    ctx.beginPath();
+                    if (this.expression === "happy") {
+                        ctx.arc(this.x, this.y + this.height / 2, this.width / 4, 0, Math.PI);
+                    } else if (this.expression === "scared") {
+                        ctx.arc(this.x, this.y + this.height / 2 + 10, this.width / 4, 0, Math.PI, true);
+                    } else {
+                        ctx.arc(this.x, this.y + this.height / 2, this.width / 6, 0, Math.PI);
+                    }
+                    ctx.stroke();
+                    
+                    // 如果在特殊动作中，添加一些动画效果
+                    if (this.isSpecialAction) {
+                        ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y + this.height/2, this.width * 1.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // 添加星星特效
+                        for (let i = 0; i < 5; i++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const distance = Math.random() * this.width * 1.5;
+                            const starX = this.x + Math.cos(angle) * distance;
+                            const starY = this.y + Math.sin(angle) * distance;
+                            
+                            ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 70%)`;
+                            drawStar(starX, starY, 5, 5, 10);
+                        }
+                    }
+                    
+                    // 如果有道具效果，添加相应的视觉效果
+                    if (this.powerUp) {
+                        switch(this.powerUp) {
+                            case "speedBoost":
+                                // 速度线
+                                ctx.strokeStyle = "rgba(255, 165, 0, 0.6)";
+                                ctx.lineWidth = 2;
+                                for (let i = 0; i < 5; i++) {
+                                    ctx.beginPath();
+                                    ctx.moveTo(this.x - this.width, this.y + Math.random() * this.height);
+                                    ctx.lineTo(this.x - this.width - 20 - Math.random() * 30, this.y + Math.random() * this.height);
+                                    ctx.stroke();
+                                }
+                                break;
+                            case "invincibility":
+                                // 闪光护盾
+                                ctx.strokeStyle = "rgba(0, 255, 255, 0.6)";
+                                ctx.lineWidth = 3;
+                                ctx.beginPath();
+                                ctx.arc(this.x, this.y + this.height/2, this.width * 1.1, 0, Math.PI * 2);
+                                ctx.stroke();
+                                break;
+                            case "magnet":
+                                // 磁铁效果
+                                ctx.fillStyle = "rgba(255, 0, 255, 0.4)";
+                                ctx.beginPath();
+                                ctx.arc(this.x, this.y + this.height/2, this.width * 2, 0, Math.PI * 2);
+                                ctx.fill();
+                                break;
+                            case "giant":
+                                // 已经通过大小变化实现
+                                break;
+                        }
+                    }
+                    
+                    ctx.restore();
+                }
+            };
+            
+            // 画星星形状的函数
+            function drawStar(cx, cy, spikes, outerRadius, innerRadius) {
+                let rot = Math.PI / 2 * 3;
+                let x = cx;
+                let y = cy;
+                let step = Math.PI / spikes;
+                
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - outerRadius);
+                
+                for (let i = 0; i < spikes; i++) {
+                    x = cx + Math.cos(rot) * outerRadius;
+                    y = cy + Math.sin(rot) * outerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                    
+                    x = cx + Math.cos(rot) * innerRadius;
+                    y = cy + Math.sin(rot) * innerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                }
+                
+                ctx.lineTo(cx, cy - outerRadius);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            // 障碍物类
+            class Obstacle {
+                constructor(x, type, scene) {
+                    this.x = x;
+                    this.y = canvas.height - 80;
+                    this.type = type;
+                    this.scene = scene;
+                    this.width = 60;
+                    this.height = 60;
+                    this.hit = false;
+                    
+                    // 根据类型设置不同的形状和大小
+                    switch(type) {
+                        case "海胆":
+                            this.width = 50;
+                            this.height = 50;
+                            this.y = canvas.height - 70;
+                            break;
+                        case "水母":
+                            this.width = 40;
+                            this.height = 80;
+                            this.y = canvas.height - 100;
+                            break;
+                        case "章鱼":
+                        case "章鱼哥":
+                            this.width = 70;
+                            this.height = 90;
+                            this.y = canvas.height - 110;
+                            break;
+                        case "汉堡塔":
+                            this.width = 60;
+                            this.height = 100;
+                            this.y = canvas.height - 120;
+                            break;
+                        case "油炸锅":
+                            this.width = 80;
+                            this.height = 50;
+                            this.y = canvas.height - 70;
+                            break;
+                        case "岩石":
+                            this.width = 70;
+                            this.height = 60;
+                            this.y = canvas.height - 80;
+                            break;
+                        case "海沟":
+                            this.width = 100;
+                            this.height = 20;
+                            this.y = canvas.height - 40;
+                            break;
+                    }
+                }
+                
+                draw() {
+                    const x = this.x - scrollOffset;
+                    
+                    ctx.save();
+                    
+                    // 绘制不同的障碍物
+                    switch(this.type) {
+                        case "海胆":
+                            // 海胆 - 圆形带刺
+                            ctx.fillStyle = "#663300";
+                            ctx.beginPath();
+                            ctx.arc(x, this.y, this.width/2, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 刺
+                            ctx.strokeStyle = "#884400";
+                            ctx.lineWidth = 3;
+                            for(let i = 0; i < 12; i++) {
+                                const angle = i * Math.PI / 6;
+                                ctx.beginPath();
+                                ctx.moveTo(x + Math.cos(angle) * (this.width/2 - 5), 
+                                          this.y + Math.sin(angle) * (this.width/2 - 5));
+                                ctx.lineTo(x + Math.cos(angle) * (this.width/2 + 15), 
+                                          this.y + Math.sin(angle) * (this.width/2 + 15));
+                                ctx.stroke();
+                            }
+                            break;
+                            
+                        case "水母":
+                            // 水母 - 半圆顶部加触须
+                            ctx.fillStyle = "#ff66ff";
+                            
+                            // 顶部半圆
+                            ctx.beginPath();
+                            ctx.arc(x, this.y - this.height/2 + 10, this.width/2, 0, Math.PI);
+                            ctx.lineTo(x + this.width/2, this.y - this.height/2 + 10);
+                            ctx.lineTo(x + this.width/2, this.y - this.height/3);
+                            ctx.arc(x, this.y - this.height/3, this.width/2, 0, Math.PI, true);
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // 触须
+                            ctx.strokeStyle = "#ff99ff";
+                            ctx.lineWidth = 3;
+                            for(let i = 0; i < 5; i++) {
+                                const startX = x - this.width/2 + (i * this.width/4);
+                                const wobble = Math.sin(Date.now() / 200 + i) * 5;
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(startX, this.y - this.height/3);
+                                ctx.bezierCurveTo(
+                                    startX + wobble, this.y - this.height/4,
+                                    startX - wobble, this.y,
+                                    startX, this.y + this.height/3
+                                );
+                                ctx.stroke();
+                            }
+                            break;
+                            
+                        case "章鱼":
+                        case "章鱼哥":
+                            // 章鱼哥 - 椭圆头部和触须
+                            if (this.type === "章鱼哥") {
+                                ctx.fillStyle = "#33ccff"; // 蓝色章鱼哥
+                            } else {
+                                ctx.fillStyle = "#ff3300"; // 红色普通章鱼
+                            }
+                            
+                            // 头部
+                            ctx.beginPath();
+                            ctx.ellipse(x, this.y - this.height/2, this.width/2, this.height/3, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 眼睛
+                            ctx.fillStyle = "white";
+                            ctx.beginPath();
+                            ctx.arc(x - 15, this.y - this.height/2 - 5, 10, 0, Math.PI * 2);
+                            ctx.arc(x + 15, this.y - this.height/2 - 5, 10, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            ctx.fillStyle = "black";
+                            ctx.beginPath();
+                            ctx.arc(x - 15, this.y - this.height/2 - 5, 5, 0, Math.PI * 2);
+                            ctx.arc(x + 15, this.y - this.height/2 - 5, 5, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 触须
+                            if (this.type === "章鱼哥") {
+                                ctx.strokeStyle = "#33ccff";
+                            } else {
+                                ctx.strokeStyle = "#ff3300";
+                            }
+                            ctx.lineWidth = 5;
+                            
+                            for(let i = 0; i < 6; i++) {
+                                const angle = (i / 6) * Math.PI + Math.PI/2;
+                                const startX = x + Math.cos(angle) * this.width/2;
+                                const startY = this.y - this.height/2 + Math.sin(angle) * this.height/3;
+                                const wobble = Math.sin(Date.now() / 300 + i) * 10;
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(startX, startY);
+                                ctx.bezierCurveTo(
+                                    startX + wobble, startY + this.height/4,
+                                    startX - wobble, startY + this.height/2,
+                                    startX + wobble, this.y + this.height/3
+                                );
+                                ctx.stroke();
+                            }
+                            break;
+                            
+                        case "汉堡塔":
+                            // 汉堡塔 - 多层堆叠
+                            const layers = 5;
+                            const layerHeight = this.height / layers;
+                            
+                            // 底部面包
+                            ctx.fillStyle = "#cc9900";
+                            ctx.beginPath();
+                            ctx.ellipse(x, this.y, this.width/2, layerHeight/2, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 图层
+                            const colors = ["#cc3300", "#33cc33", "#ffff66", "#ff9933"];
+                            for(let i = 1; i < layers - 1; i++) {
+                                ctx.fillStyle = colors[(i-1) % colors.length];
+                                ctx.beginPath();
+                                ctx.ellipse(x, this.y - i * layerHeight, this.width/2, layerHeight/2, 0, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                            
+                            // 顶部面包
+                            ctx.fillStyle = "#cc9900";
+                            ctx.beginPath();
+                            ctx.ellipse(x, this.y - (layers-1) * layerHeight, this.width/2, layerHeight/2, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                            break;
+                            
+                        case "油炸锅":
+                            // 油炸锅 - 带把手的锅
+                            ctx.fillStyle = "#666666";
+                            
+                            // 锅身
+                            ctx.beginPath();
+                            ctx.rect(x - this.width/2, this.y - this.height/2, this.width, this.height);
+                            ctx.fill();
+                            
+                            // 锅把
+                            ctx.beginPath();
+                            ctx.moveTo(x + this.width/2, this.y - this.height/4);
+                            ctx.lineTo(x + this.width/2 + 20, this.y - this.height/4);
+                            ctx.lineTo(x + this.width/2 + 20, this.y + this.height/4);
+                            ctx.lineTo(x + this.width/2, this.y + this.height/4);
+                            ctx.fill();
+                            
+                            // 油
+                            ctx.fillStyle = "#ffcc00";
+                            ctx.beginPath();
+                            ctx.rect(x - this.width/2 + 5, this.y - this.height/2 + 5, this.width - 10, this.height - 10);
+                            ctx.fill();
+                            
+                            // 气泡
+                            ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                            for(let i = 0; i < 8; i++) {
+                                const bubbleX = x - this.width/2 + 10 + Math.random() * (this.width - 20);
+                                const bubbleY = this.y - this.height/2 + 10 + Math.random() * (this.height - 20);
+                                const bubbleSize = 2 + Math.random() * 6;
+                                
+                                ctx.beginPath();
+                                ctx.arc(bubbleX, bubbleY, bubbleSize, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                            break;
+                            
+                        case "岩石":
+                            // 岩石 - 不规则多边形
+                            ctx.fillStyle = "#666666";
+                            
+                            ctx.beginPath();
+                            ctx.moveTo(x, this.y - this.height/2);
+                            
+                            const points = 8;
+                            for(let i = 1; i <= points; i++) {
+                                const angle = (i / points) * Math.PI * 2;
+                                const rnd = 0.8 + Math.random() * 0.4;
+                                ctx.lineTo(
+                                    x + Math.cos(angle) * this.width/2 * rnd,
+                                    this.y + Math.sin(angle) * this.height/2 * rnd
+                                );
+                            }
+                            
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // 岩石纹理
+                            ctx.strokeStyle = "#444444";
+                            ctx.lineWidth = 2;
+                            for(let i = 0; i < 5; i++) {
+                                const startX = x - this.width/3 + Math.random() * (this.width/3);
+                                const startY = this.y - this.height/3 + Math.random() * (this.height/3);
+                                const length = 10 + Math.random() * 20;
+                                const angle = Math.random() * Math.PI * 2;
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(startX, startY);
+                                ctx.lineTo(
+                                    startX + Math.cos(angle) * length,
+                                    startY + Math.sin(angle) * length
+                                );
+                                ctx.stroke();
+                            }
+                            break;
+                            
+                        case "海沟":
+                            // 海沟 - 深色裂缝
+                            ctx.fillStyle = "#000033";
+                            
+                            // 主要裂缝
+                            ctx.beginPath();
+                            ctx.moveTo(x - this.width/2, this.y - this.height);
+                            ctx.lineTo(x - this.width/3, this.y);
+                            ctx.lineTo(x + this.width/3, this.y);
+                            ctx.lineTo(x + this.width/2, this.y - this.height);
+                            ctx.fill();
+                            
+                            // 侧面细小裂缝
+                            ctx.strokeStyle = "#000033";
+                            ctx.lineWidth = 3;
+                            
+                            for(let i = 0; i < 4; i++) {
+                                const side = i % 2 === 0 ? -1 : 1;
+                                const startY = this.y - this.height * (0.3 + Math.random() * 0.5);
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(x + side * this.width/3, startY);
+                                ctx.lineTo(x + side * (this.width/2 + 10), startY + (Math.random() * 20 - 10));
+                                ctx.stroke();
+                            }
+                            break;
+                    }
+                    
+                    ctx.restore();
+                    
+                    // 碰撞箱调试
+                    if (false) { // 设为true以显示碰撞箱
+                        ctx.strokeStyle = 'red';
+                        ctx.strokeRect(x - this.width/2, this.y - this.height/2, this.width, this.height);
+                    }
+                }
+                
+                checkCollision(player) {
+                    if (this.hit) return false;
+                    
+                    // 派大星的碰撞箱
+                    const playerLeft = player.x - player.width/2;
+                    const playerRight = player.x + player.width/2;
+                    const playerTop = player.y;
+                    const playerBottom = player.y + player.height;
+                    
+                    // 障碍物的碰撞箱
+                    const obstacleLeft = this.x - scrollOffset - this.width/2;
+                    const obstacleRight = this.x - scrollOffset + this.width/2;
+                    const obstacleTop = this.y - this.height/2;
+                    const obstacleBottom = this.y + this.height/2;
+                    
+                    // 检测碰撞
+                    if (playerRight > obstacleLeft &&
+                        playerLeft < obstacleRight &&
+                        playerBottom > obstacleTop &&
+                        playerTop < obstacleBottom) {
+                        
+                        if (!player.invincible) {
+                            this.hit = true;
+                            player.expression = "scared";
+                            return true;
+                        }
+                    }
+                    
+                    return false;
+                }
+            }
+            
+            // 硬币类
+            class Coin {
+                constructor(x, y, value = 1) {
+                    this.x = x;
+                    this.y = y || canvas.height - 100 - Math.random() * 200;
+                    this.width = 30;
+                    this.height = 30;
+                    this.value = value;
+                    this.collected = false;
+                    this.rotation = 0;
+                }
+                
+                update() {
+                    this.rotation += 0.1;
+                    
+                    // 如果玩家有磁铁道具，硬币会被吸向玩家
+                    if (player.powerUp === "magnet" && !this.collected) {
+                        const dx = player.x - (this.x - scrollOffset);
+                        const dy = player.y + player.height/2 - this.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < player.width * 2) {
+                            this.x -= scrollOffset;
+                            this.x += dx * 0.1;
+                            this.y += dy * 0.1;
+                            this.x += scrollOffset;
+                        }
+                    }
+                }
+                
+                draw() {
+                    if (this.collected) return;
+                    
+                    const x = this.x - scrollOffset;
+                    
+                    ctx.save();
+                    ctx.translate(x, this.y);
+                    ctx.rotate(this.rotation);
+                    
+                    // 硬币闪光效果
+                    const glowAmount = Math.sin(Date.now() / 200) * 0.2 + 0.8;
+                    
+                    // 根据价值不同绘制不同颜色的硬币
+                    if (this.value === 1) {
+                        // 普通金币
+                        ctx.fillStyle = `rgb(255, ${Math.floor(215 * glowAmount)}, 0)`;
+                    } else if (this.value === 5) {
+                        // 银币
+                        ctx.fillStyle = `rgb(${Math.floor(192 * glowAmount)}, ${Math.floor(192 * glowAmount)}, ${Math.floor(192 * glowAmount)})`;
+                    } else if (this.value === 10) {
+                        // 特殊彩色硬币
+                        const hue = (Date.now() / 50) % 360;
+                        ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 硬币边缘
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.width/2, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // 硬币中心图案
+                    if (this.value === 1) {
+                        // $ 符号
+                        ctx.fillStyle = "#ffffff";
+                        ctx.font = "bold 20px Arial";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText("$", 0, 0);
+                    } else if (this.value === 5) {
+                        // 5
+                        ctx.fillStyle = "#ffffff";
+                        ctx.font = "bold 18px Arial";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText("5", 0, 0);
+                    } else if (this.value === 10) {
+                        // 星形
+                        ctx.fillStyle = "#ffffff";
+                        drawStar(0, 0, 5, this.width/4, this.width/8);
+                    }
+                    
+                    ctx.restore();
+                }
+                
+                checkCollision(player) {
+                    if (this.collected) return false;
+                    
+                    const x = this.x - scrollOffset;
+                    
+                    // 碰撞检测
+                    const dx = player.x - x;
+                    const dy = (player.y + player.height/2) - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < player.width/2 + this.width/2) {
+                        this.collected = true;
+                        // coins += this.value;
+   			collectedCoinsCount += this.value;
+                        // coinsDisplay.textContent = coins;
+ 			coinsDisplay.textContent = collectedCoinsCount;
+                        playSound("coin");
+                        
+                        // 添加收集效果
+                        effects.push(new Effect(x, this.y, "coinCollect"));
+                        
+                        return true;
+                    }
+                    
+                    return false;
+                }
+            }
+            
+            // 道具类
+            class PowerUp {
+                constructor(x, type) {
+                    this.x = x;
+                    this.y = canvas.height - 100 - Math.random() * 150;
+                    this.type = type || getRandomPowerUpType();
+                    this.width = 50;
+                    this.height = 50;
+                    this.collected = false;
+                    this.floatOffset = 0;
+                    this.rotation = 0;
+                }
+                
+                update() {
+                    this.floatOffset = Math.sin(Date.now() / 300) * 10;
+                    this.rotation += 0.03;
+                }
+                
+                draw() {
+                    if (this.collected) return;
+                    
+                    const x = this.x - scrollOffset;
+                    const y = this.y + this.floatOffset;
+                    
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(this.rotation);
+                    
+                    // 绘制闪光背景
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.width/1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 根据道具类型绘制不同图标
+                    switch(this.type) {
+                        case "speedBoost": // 菠萝头盔
+                            // 菠萝主体
+                            ctx.fillStyle = "#ffcc00";
+                            ctx.beginPath();
+                            ctx.arc(0, 0, this.width/3, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 菠萝花纹
+                            ctx.strokeStyle = "#cc9900";
+                            ctx.lineWidth = 2;
+                            for(let i = 0; i < 8; i++) {
+                                const angle = (i / 8) * Math.PI * 2;
+                                ctx.beginPath();
+                                ctx.moveTo(0, 0);
+                                ctx.lineTo(Math.cos(angle) * this.width/2.5, Math.sin(angle) * this.width/2.5);
+                                ctx.stroke();
+                            }
+                            
+                            // 头盔
+                            ctx.fillStyle = "#cccccc";
+                            ctx.beginPath();
+                            ctx.arc(0, 0, this.width/2.5, -Math.PI * 0.8, Math.PI * 0.8);
+                            ctx.fill();
+                            break;
+                            
+                        case "invincibility": // 气泡护盾
+                            // 气泡
+                            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.width/2);
+                            gradient.addColorStop(0, "rgba(0, 255, 255, 0.2)");
+                            gradient.addColorStop(0.8, "rgba(0, 255, 255, 0.6)");
+                            gradient.addColorStop(1, "rgba(0, 255, 255, 0.9)");
+                            
+                            ctx.fillStyle = gradient;
+                            ctx.beginPath();
+                            ctx.arc(0, 0, this.width/2.5, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 反光效果
+                            ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                            ctx.beginPath();
+                            ctx.arc(-5, -5, this.width/8, 0, Math.PI * 2);
+                            ctx.fill();
+                            break;
+                            
+                        case "magnet": // 磁铁
+                            // 磁铁主体
+                            ctx.fillStyle = "#cc0000";
+                            ctx.beginPath();
+                            ctx.moveTo(-this.width/4, -this.width/3);
+                            ctx.lineTo(this.width/4, -this.width/3);
+                            ctx.lineTo(this.width/4, this.width/6);
+                            ctx.lineTo(this.width/3, this.width/6);
+                            ctx.lineTo(this.width/3, this.width/3);
+                            ctx.lineTo(-this.width/3, this.width/3);
+                            ctx.lineTo(-this.width/3, this.width/6);
+                            ctx.lineTo(-this.width/4, this.width/6);
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // 磁铁极
+                            ctx.fillStyle = "#ffffff";
+                            ctx.beginPath();
+                            ctx.rect(-this.width/3, this.width/6, this.width/6, this.width/6);
+                            ctx.rect(this.width/6, this.width/6, this.width/6, this.width/6);
+                            ctx.fill();
+                            break;
+                            
+                        case "giant": // 蟹黄堡
+                            // 面包底部
+                            ctx.fillStyle = "#cc9900";
+                            ctx.beginPath();
+                            ctx.arc(0, this.width/5, this.width/3, 0, Math.PI, true);
+                            ctx.fill();
+                            
+                            // 面包顶部
+                            ctx.beginPath();
+                            ctx.arc(0, -this.width/5, this.width/3, 0, Math.PI);
+                            ctx.fill();
+                            
+                            // 肉饼
+                            ctx.fillStyle = "#884400";
+                            ctx.beginPath();
+                            ctx.arc(0, 0, this.width/3.5, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 生菜
+                            ctx.fillStyle = "#00cc00";
+                            ctx.beginPath();
+                            ctx.arc(0, -this.width/10, this.width/3.2, 0, Math.PI);
+                            ctx.fill();
+                            
+                            // 芝士
+                            ctx.fillStyle = "#ffcc00";
+                            ctx.beginPath();
+                            ctx.arc(0, this.width/12, this.width/3.2, 0, Math.PI, true);
+                            ctx.fill();
+                            break;
+                    }
+                    
+                    ctx.restore();
+                    
+                    // 闪光效果
+                    const glowOpacity = Math.sin(Date.now() / 200) * 0.3 + 0.4;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${glowOpacity})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, this.width/1.8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                checkCollision(player) {
+                    if (this.collected) return false;
+                    
+                    const x = this.x - scrollOffset;
+                    
+                    // 碰撞检测
+                    const dx = player.x - x;
+                    const dy = (player.y + player.height/2) - (this.y + this.floatOffset);
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < player.width/2 + this.width/2) {
+                        this.collected = true;
+                        player.activatePowerUp(this.type);
+                        
+                        // 添加收集效果
+                        effects.push(new Effect(x, this.y + this.floatOffset, "powerUpCollect"));
+                        
+                        return true;
+                    }
+                    
+                    return false;
+                }
+            }
+            
+            // 随机生成道具类型
+            function getRandomPowerUpType() {
+                const types = ["speedBoost", "invincibility", "magnet", "giant"];
+                return types[Math.floor(Math.random() * types.length)];
+            }
+            
+            // 互动物体类
+            class Interactable {
+                constructor(x, type) {
+                    this.x = x;
+                    this.y = canvas.height - 100;
+                    this.type = type || getRandomInteractableType();
+                    this.width = 100;
+                    this.height = 100;
+                    this.interacted = false;
+                    this.animationFrame = 0;
+                }
+                
+                draw() {
+                    const x = this.x - scrollOffset;
+                    
+                    ctx.save();
+                    
+                    // 绘制不同的互动物体
+                    switch(this.type) {
+                        case "珊迪树屋":
+                            // 橡树圆顶
+                            ctx.fillStyle = "#00aa00";
+                            ctx.beginPath();
+                            ctx.arc(x, this.y - this.height/2, this.width/2, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 树干
+                            ctx.fillStyle = "#884400";
+                            ctx.fillRect(x - 15, this.y - this.height/4, 30, this.height/3);
+                            
+                            // 窗户
+                            ctx.fillStyle = "#66ccff";
+                            ctx.beginPath();
+                            ctx.arc(x, this.y - this.height/2, 20, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 门
+                            ctx.fillStyle = "#aa6600";
+                            ctx.fillRect(x - 10, this.y - 40, 20, 30);
+                            
+                            // 互动提示
+                            if (!this.interacted && Math.sin(Date.now() / 300) > 0) {
+                                ctx.fillStyle = "white";
+                                ctx.font = "20px Arial";
+                                ctx.textAlign = "center";
+                                ctx.fillText("★", x, this.y - this.height - 20);
+                            }
+                            
+                            // 如果已互动，绘制松鼠珊迪
+                            if (this.interacted) {
+                                ctx.fillStyle = "#aa6600";
+                                
+                                // 身体
+                                ctx.beginPath();
+                                ctx.ellipse(x, this.y - 70, 15, 25, 0, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                // 头部
+                                ctx.beginPath();
+                                ctx.arc(x, this.y - 105, 15, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                // 尾巴
+                                ctx.beginPath();
+                                ctx.moveTo(x + 15, this.y - 70);
+                                ctx.quadraticCurveTo(x + 40, this.y - 90, x + 30, this.y - 50);
+                                ctx.quadraticCurveTo(x + 20, this.y - 40, x + 15, this.y - 60);
+                                ctx.fill();
+                                
+                                // 眼睛
+                                ctx.fillStyle = "white";
+                                ctx.beginPath();
+                                ctx.arc(x - 5, this.y - 108, 4, 0, Math.PI * 2);
+                                ctx.arc(x + 5, this.y - 108, 4, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                ctx.fillStyle = "black";
+                                ctx.beginPath();
+                                ctx.arc(x - 5, this.y - 108, 2, 0, Math.PI * 2);
+                                ctx.arc(x + 5, this.y - 108, 2, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                            break;
+                            
+                        case "蟹堡王":
+                            // 主体建筑
+                            ctx.fillStyle = "#ff6600";
+                            ctx.fillRect(x - this.width/2, this.y - this.height, this.width, this.height);
+                            
+                            // 屋顶
+                            ctx.fillStyle = "#0066cc";
+                            ctx.beginPath();
+                            ctx.moveTo(x - this.width/2 - 20, this.y - this.height);
+                            ctx.lineTo(x + this.width/2 + 20, this.y - this.height);
+                            ctx.lineTo(x + this.width/2, this.y - this.height - 40);
+                            ctx.lineTo(x - this.width/2, this.y - this.height - 40);
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // 旗帜
+                            ctx.fillStyle = "#ffcc00";
+                            ctx.fillRect(x - 5, this.y - this.height - 80, 10, 40);
+                            
+                            ctx.fillStyle = "#ff3300";
+                            ctx.beginPath();
+                            ctx.moveTo(x + 5, this.y - this.height - 80);
+                            ctx.lineTo(x + 40, this.y - this.height - 70);
+                            ctx.lineTo(x + 5, this.y - this.height - 60);
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // 门
+                            ctx.fillStyle = "#663300";
+                            ctx.fillRect(x - 20, this.y - 60, 40, 60);
+                            
+                            // 窗户
+                            ctx.fillStyle = "#66ccff";
+                            ctx.fillRect(x - this.width/2 + 20, this.y - this.height + 20, 30, 30);
+                            ctx.fillRect(x + this.width/2 - 50, this.y - this.height + 20, 30, 30);
+                            
+                            // 标志
+                            ctx.fillStyle = "#ffcc00";
+                            ctx.beginPath();
+                            ctx.ellipse(x, this.y - this.height - 20, 40, 20, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            ctx.fillStyle = "#ff0000";
+                            ctx.font = "bold 20px Arial";
+                            ctx.textAlign = "center";
+                            ctx.fillText("蟹堡王", x, this.y - this.height - 15);
+                            
+                            // 互动提示
+                            if (!this.interacted && Math.sin(Date.now() / 300) > 0) {
+                                ctx.fillStyle = "white";
+                                ctx.font = "20px Arial";
+                                ctx.textAlign = "center";
+                                ctx.fillText("★", x, this.y - this.height - 100);
+                            }
+                            
+                            // 如果已互动，蟹老板出现
+                            if (this.interacted) {
+                                ctx.fillStyle = "#ff3300";
+                                
+                                // 身体
+                                ctx.beginPath();
+                                ctx.rect(x - 25, this.y - 50, 50, 30);
+                                ctx.fill();
+                                
+                                // 蟹钳
+                                ctx.beginPath();
+                                ctx.arc(x - 35, this.y - 35, 15, 0, Math.PI * 2);
+                                ctx.arc(x + 35, this.y - 35, 15, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                // 眼睛杆
+                                ctx.fillStyle = "#000000";
+                                ctx.fillRect(x - 10, this.y - 50, 5, 20);
+                                ctx.fillRect(x + 5, this.y - 50, 5, 20);
+                                
+                                // 眼球
+                                ctx.fillStyle = "#66ccff";
+                                ctx.beginPath();
+                                ctx.arc(x - 7.5, this.y - 60, 10, 0, Math.PI * 2);
+                                ctx.arc(x + 7.5, this.y - 60, 10, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                // 瞳孔
+                                ctx.fillStyle = "#000000";
+                                ctx.beginPath();
+                                ctx.arc(x - 7.5, this.y - 60, 5, 0, Math.PI * 2);
+                                ctx.arc(x + 7.5, this.y - 60, 5, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                // 金钱符号
+                                if (this.animationFrame % 60 < 30) {
+                                    ctx.fillStyle = "#00cc00";
+                                    ctx.font = "bold 30px Arial";
+                                    ctx.fillText("$", x - 15, this.y - 80);
+                                    ctx.fillText("$", x + 15, this.y - 80);
+                                }
+                                
+                                this.animationFrame++;
+                            }
+                            break;
+                            
+                        case "菠萝房子":
+                            // 菠萝主体
+                            ctx.fillStyle = "#ffcc00";
+                            ctx.beginPath();
+                            ctx.arc(x, this.y - this.height/2, this.width/2, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 菠萝花纹
+                            ctx.strokeStyle = "#cc9900";
+                            ctx.lineWidth = 4;
+                            for(let i = 0; i < 12; i++) {
+                                const angle = (i / 12) * Math.PI * 2;
+                                ctx.beginPath();
+                                ctx.moveTo(x, this.y - this.height/2);
+                                ctx.lineTo(
+                                    x + Math.cos(angle) * this.width/2,
+                                    this.y - this.height/2 + Math.sin(angle) * this.width/2
+                                );
+                                ctx.stroke();
+                            }
+                            
+                            // 菠萝叶子顶部
+                            ctx.fillStyle = "#00aa00";
+                            ctx.beginPath();
+                            for(let i = 0; i < 8; i++) {
+                                const angle = (i / 8) * Math.PI * 2;
+                                const len = 30 + Math.random() * 10;
+                                ctx.moveTo(x, this.y - this.height);
+                                ctx.lineTo(
+                                    x + Math.cos(angle) * len,
+                                    this.y - this.height - 20 + Math.sin(angle) * len/2
+                                );
+                            }
+                            ctx.fill();
+                            
+                            // 门
+                            ctx.fillStyle = "#0066cc";
+                            ctx.fillRect(x - 20, this.y - 50, 40, 50);
+                            
+                            // 窗户
+                            ctx.fillStyle = "#66ccff";
+                            ctx.beginPath();
+                            ctx.arc(x - 30, this.y - 80, 15, 0, Math.PI * 2);
+                            ctx.arc(x + 30, this.y - 80, 15, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 互动提示
+                            if (!this.interacted && Math.sin(Date.now() / 300) > 0) {
+                                ctx.fillStyle = "white";
+                                ctx.font = "20px Arial";
+                                ctx.textAlign = "center";
+                                ctx.fillText("★", x, this.y - this.height - 40);
+                            }
+                            
+                            // 如果已互动，绘制海绵宝宝
+                            if (this.interacted) {
+                                ctx.fillStyle = "#ffff00";
+                                
+                                // 身体
+                                ctx.fillRect(x - 20, this.y - 80, 40, 60);
+                                
+                                // 裤子
+                                ctx.fillStyle = "#884400";
+                                ctx.fillRect(x - 20, this.y - 40, 40, 20);
+                                
+                                // 领带
+                                ctx.fillStyle = "#ff0000";
+                                ctx.beginPath();
+                                ctx.moveTo(x, this.y - 80);
+                                ctx.lineTo(x - 10, this.y - 65);
+                                ctx.lineTo(x, this.y - 50);
+                                ctx.lineTo(x + 10, this.y - 65);
+                                ctx.closePath();
+                                ctx.fill();
+                                
+                                // 眼睛
+                                ctx.fillStyle = "white";
+                                ctx.beginPath();
+                                ctx.arc(x - 10, this.y - 70, 8, 0, Math.PI * 2);
+                                ctx.arc(x + 10, this.y - 70, 8, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                // 瞳孔
+                                ctx.fillStyle = "#0066cc";
+                                ctx.beginPath();
+                                ctx.arc(x - 10, this.y - 70, 4, 0, Math.PI * 2);
+                                ctx.arc(x + 10, this.y - 70, 4, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                // 鼻子
+                                ctx.fillStyle = "#ffff00";
+                                ctx.beginPath();
+                                ctx.arc(x, this.y - 60, 5, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                // 微笑
+                                ctx.strokeStyle = "#000000";
+                                ctx.lineWidth = 2;
+                                ctx.beginPath();
+                                ctx.arc(x, this.y - 60, 10, 0.2 * Math.PI, 0.8 * Math.PI);
+                                ctx.stroke();
+                                
+                                // 牙齿
+                                ctx.fillStyle = "white";
+                                ctx.fillRect(x - 5, this.y - 56, 4, 5);
+                                ctx.fillRect(x + 1, this.y - 56, 4, 5);
+                                
+                                // 手臂
+                                ctx.strokeStyle = "#ffff00";
+                                ctx.lineWidth = 5;
+                                ctx.beginPath();
+                                ctx.moveTo(x - 20, this.y - 60);
+                                ctx.lineTo(x - 35, this.y - 50 + Math.sin(this.animationFrame / 10) * 5);
+                                ctx.moveTo(x + 20, this.y - 60);
+                                ctx.lineTo(x + 35, this.y - 50 + Math.sin(this.animationFrame / 10 + Math.PI) * 5);
+                                ctx.stroke();
+                                
+                                this.animationFrame++;
+                            }
+                            break;
+                    }
+                    
+                    ctx.restore();
+                }
+                
+                interact() {
+                    if (!this.interacted) {
+                        this.interacted = true;
+                        playSound("interact");
+                        
+                        // 根据不同的互动物体给予不同奖励
+                        switch(this.type) {
+                            case "珊迪树屋":
+                                // 给予5个硬币
+                                // coins += 5;
+				collectedCoinsCount += 5;
+                                // coinsDisplay.textContent = coins;
+				 coinsDisplay.textContent = collectedCoinsCount;
+                                
+                                // 添加特效
+                                const x = this.x - scrollOffset;
+                                for(let i = 0; i < 5; i++) {
+                                    effects.push(new Effect(
+                                        x + (Math.random() * 40 - 20),
+                                        this.y - this.height/2 + (Math.random() * 40 - 20),
+                                        "coinCollect"
+                                    ));
+                                }
+                                break;
+                                
+                            case "蟹堡王":
+                                // 给予加速道具
+                                player.activatePowerUp("speedBoost");
+                                effects.push(new Effect(
+                                    this.x - scrollOffset,
+                                    this.y - 60,
+                                    "powerUpCollect"
+                                ));
+                                break;
+                                
+                            case "菠萝房子":
+                                // 给予无敌道具
+                                player.activatePowerUp("invincibility");
+                                effects.push(new Effect(
+                                    this.x - scrollOffset,
+                                    this.y - 60,
+                                    "powerUpCollect"
+                                ));
+                                break;
+                        }
+                    }
+                }
+            }
+            
+            // 随机生成互动物体类型
+            function getRandomInteractableType() {
+                const types = ["珊迪树屋", "蟹堡王", "菠萝房子"];
+                return types[Math.floor(Math.random() * types.length)];
+            }
+            
+            // 视觉效果类
+            class Effect {
+                constructor(x, y, type) {
+                    this.x = x;
+                    this.y = y;
+                    this.type = type;
+                    this.frame = 0;
+                    this.maxFrames = 30;
+                    this.size = 30;
+                    this.particles = [];
+                    
+                    // 为粒子效果创建粒子
+                    if (type === "coinCollect" || type === "powerUpCollect") {
+                        for(let i = 0; i < 10; i++) {
+                            this.particles.push({
+                                x: 0,
+                                y: 0,
+                                vx: (Math.random() - 0.5) * 5,
+                                vy: (Math.random() - 0.5) * 5,
+                                size: 3 + Math.random() * 4,
+                                color: type === "coinCollect" ? "#ffcc00" : "#ffffff",
+                                alpha: 1
+                            });
+                        }
+                    }
+                }
+                
+                update() {
+                    this.frame++;
+                    
+                    // 更新粒子
+                    for(let p of this.particles) {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.alpha = 1 - (this.frame / this.maxFrames);
+                    }
+                }
+                
+                draw() {
+                    ctx.save();
+                    
+                    switch(this.type) {
+                        case "coinCollect":
+                            // 硬币收集特效
+                            ctx.fillStyle = "rgba(255, 204, 0, " + (1 - this.frame / this.maxFrames) + ")";
+                            ctx.beginPath();
+                            ctx.arc(this.x, this.y, this.size * (1 - this.frame / this.maxFrames * 0.5), 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 绘制粒子
+                            for(let p of this.particles) {
+                                ctx.fillStyle = `rgba(255, 204, 0, ${p.alpha})`;
+                                ctx.beginPath();
+                                ctx.arc(this.x + p.x, this.y + p.y, p.size, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                            
+                            // 显示+1
+                            ctx.fillStyle = `rgba(255, 255, 255, ${1 - this.frame / this.maxFrames})`;
+                            ctx.font = "bold 20px Arial";
+                            ctx.textAlign = "center";
+                            ctx.fillText("+1", this.x, this.y - this.frame/2);
+                            break;
+                            
+                        case "powerUpCollect":
+                            // 道具收集特效
+                            const color = `hsl(${(Date.now() / 20) % 360}, 100%, 70%)`;
+                            ctx.fillStyle = `${color}${Math.floor((1 - this.frame / this.maxFrames) * 255).toString(16)}`;
+                            ctx.beginPath();
+                            ctx.arc(this.x, this.y, this.size * (1 + this.frame / this.maxFrames), 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 绘制粒子
+                            for(let p of this.particles) {
+                                ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+                                ctx.beginPath();
+                                ctx.arc(this.x + p.x, this.y + p.y, p.size, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                            break;
+                    }
+                    
+                    ctx.restore();
+                }
+                
+                isFinished() {
+                    return this.frame >= this.maxFrames;
+                }
+            }
+            
+            // 背景元素类
+            class Decoration {
+                constructor(x, type, scene, layer = 1) {
+                    this.x = x;
+                    this.y = canvas.height - 50 - Math.random() * 100;
+                    this.type = type;
+                    this.scene = scene;
+                    this.layer = layer; // 1=前景, 0=背景
+                    this.scale = 0.5 + Math.random() * 0.5;
+                    this.width = 50 * this.scale;
+                    this.height = 50 * this.scale;
+                    this.waveOffset = Math.random() * Math.PI * 2;
+                }
+                
+                draw() {
+                    // 根据层级使用不同的滚动速度
+                    const parallaxFactor = this.layer === 0 ? 0.5 : 1;
+                    const x = this.x - scrollOffset * parallaxFactor;
+                    
+                    // 如果在屏幕外，不绘制
+                    if (x < -100 || x > canvas.width + 100) {
+                        return;
+                    }
+                    
+                    ctx.save();
+                    
+                    // 根据场景和类型绘制不同装饰物
+                    switch(this.scene) {
+                        case 0: // 比基尼海滩
+                            switch(this.type) {
+                                case "贝壳":
+                                    ctx.fillStyle = "#ffcccc";
+                                    ctx.beginPath();
+                                    ctx.ellipse(x, this.y, this.width/2, this.height/3, 0, 0, Math.PI * 2);
+                                    ctx.fill();
+                                    
+                                    ctx.strokeStyle = "#ffaaaa";
+                                    ctx.lineWidth = 2;
+                                    ctx.beginPath();
+                                    ctx.ellipse(x, this.y, this.width/2 * 0.8, this.height/3 * 0.8, 0, 0, Math.PI * 2);
+                                    ctx.stroke();
+                                    break;
+                                    
+                                case "海星":
+                                    ctx.fillStyle = "#ff9966";
+                                    drawStar(x, this.y, 5, this.width/2, this.height/4);
+                                    break;
+                                    
+                                case "海藻":
+                                    ctx.strokeStyle = "#00aa00";
+                                    ctx.lineWidth = 3;
+                                    
+                                    // 波浪运动
+                                    const waveTime = Date.now() / 1000 + this.waveOffset;
+                                    
+                                    for(let i = 0; i < 3; i++) {
+                                        const offsetX = (i - 1) * 10;
+                                        const wobble = Math.sin(waveTime + i) * 5;
+                                        
+                                        ctx.beginPath();
+                                        ctx.moveTo(x + offsetX, this.y + this.height/2);
+                                        
+                                        for(let j = 0; j < 5; j++) {
+                                            const ctrlX = x + offsetX + wobble * (j % 2 === 0 ? 1 : -1);
+                                            const ctrlY = this.y + this.height/2 - this.height/5 * (j+1);
+                                            const endY = this.y + this.height/2 - this.height/5 * (j+1.5);
+                                            
+                                            ctx.quadraticCurveTo(ctrlX, ctrlY, x + offsetX, endY);
+                                        }
+                                        
+                                        ctx.stroke();
+                                    }
+                                    break;
+                            }
+                            break;
+                            
+                        case 1: // 蟹堡王
+                            switch(this.type) {
+                                case "菜单":
+                                    ctx.fillStyle = "#ffffff";
+                                    ctx.fillRect(x - this.width/2, this.y - this.height/2, this.width, this.height);
+                                    
+                                    ctx.strokeStyle = "#cc6600";
+                                    ctx.lineWidth = 2;
+                                    ctx.strokeRect(x - this.width/2, this.y - this.height/2, this.width, this.height);
+                                    
+                                    // 菜单文字线条
+                                    ctx.strokeStyle = "#000000";
+                                    ctx.lineWidth = 1;
+                                    for(let i = 0; i < 3; i++) {
+                                        ctx.beginPath();
+                                        ctx.moveTo(x - this.width/2 + 5, this.y - this.height/3 + i * 15);
+                                        ctx.lineTo(x + this.width/2 - 5, this.y - this.height/3 + i * 15);
+                                        ctx.stroke();
+                                    }
+                                    
+                                    // 菜单标题
+                                    ctx.fillStyle = "#cc6600";
+                                    ctx.font = `${Math.floor(10 * this.scale)}px Arial`;
+                                    ctx.textAlign = "center";
+                                    ctx.fillText("菜单", x, this.y - this.height/2 + 10);
+                                    break;
+                                    
+                                case "餐桌":
+                                    // 桌面
+                                    ctx.fillStyle = "#cc6600";
+                                    ctx.fillRect(x - this.width/2, this.y - this.height/8, this.width, this.height/4);
+                                    
+                                    // 桌腿
+                                    ctx.fillRect(x - this.width/3, this.y, this.width/6, this.height/2);
+                                    ctx.fillRect(x + this.width/6, this.y, this.width/6, this.height/2);
+                                    
+                                    // 盘子
+                                    ctx.fillStyle = "#ffffff";
+                                    ctx.beginPath();
+                                    ctx.arc(x, this.y - this.height/8, this.width/4, 0, Math.PI * 2);
+                                    ctx.fill();
+                                    
+                                    ctx.strokeStyle = "#cccccc";
+                                    ctx.lineWidth = 2;
+                                    ctx.beginPath();
+                                    ctx.arc(x, this.y - this.height/8, this.width/5, 0, Math.PI * 2);
+                                    ctx.stroke();
+                                    break;
+                                    
+                                case "收银台":
+                                    // 收银台主体
+                                    ctx.fillStyle = "#cc6600";
+                                    ctx.fillRect(x - this.width/2, this.y - this.height/2, this.width, this.height/2);
+                                    
+                                    // 收银机
+                                    ctx.fillStyle = "#999999";
+                                    ctx.fillRect(x - this.width/4, this.y - this.height/2 - this.height/4, this.width/2, this.height/4);
+                                    
+                                    // 按键
+                                    ctx.fillStyle = "#333333";
+                                    for(let i = 0; i < 3; i++) {
+                                        for(let j = 0; j < 3; j++) {
+                                            ctx.fillRect(
+                                                x - this.width/4 + 5 + j * (this.width/6),
+                                                this.y - this.height/2 - this.height/4 + 5 + i * (this.height/12),
+                                                this.width/8,
+                                                this.height/16
+                                            );
+                                        }
+                                    }
+                                    
+                                    // 显示屏
+                                    ctx.fillStyle = "#66ff66";
+                                    ctx.fillRect(x - this.width/4 + 5, this.y - this.height/2 - this.height/4 + 5, this.width/2 - 10, this.height/8);
+                                    break;
+                            }
+                            break;
+                            
+                        case 2: // 水母田
+                            switch(this.type) {
+                                case "水母灯":
+                                    // 灯罩
+                                    ctx.fillStyle = `rgba(255, 153, 255, ${0.6 + Math.sin(Date.now() / 500 + this.waveOffset) * 0.2})`;
+                                    
+                                    ctx.beginPath();
+                                    ctx.arc(x, this.y - this.height/2, this.width/3, 0, Math.PI);
+                                    ctx.lineTo(x + this.width/3, this.y - this.height/4);
+                                    ctx.arc(x, this.y - this.height/4, this.width/3, 0, Math.PI, true);
+                                    ctx.closePath();
+                                    ctx.fill();
+                                    
+                                    // 灯丝
+                                    ctx.strokeStyle = "#ffffff";
+                                    ctx.lineWidth = 2;
+                                    ctx.beginPath();
+                                    ctx.moveTo(x, this.y - this.height);
+                                    ctx.lineTo(x, this.y - this.height/2);
+                                    ctx.stroke();
+                                    
+                                    // 光晕
+                                    const glowSize = 20 + Math.sin(Date.now() / 500 + this.waveOffset) * 5;
+                                    const gradient = ctx.createRadialGradient(x, this.y - this.height/3, 0, x, this.y - this.height/3, glowSize);
+                                    gradient.addColorStop(0, "rgba(255, 255, 255, 0.7)");
+                                    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+                                    
+                                    ctx.fillStyle = gradient;
+                                    ctx.beginPath();
+                                    ctx.arc(x, this.y - this.height/3, glowSize, 0, Math.PI * 2);
+                                    ctx.fill();
+                                    break;
+                                    
+                                case "海草":
+                                    ctx.strokeStyle = "#009933";
+                                    ctx.lineWidth = 3;
+                                    
+                                    // 波浪运动
+                                    const waveTime = Date.now() / 800 + this.waveOffset;
+                                    
+                                    for(let i = 0; i < 4; i++) {
+                                        const offsetX = (i - 1.5) * 8 * this.scale;
+                                        const heightFactor = 0.7 + Math.random() * 0.6;
+                                        const wobble = Math.sin(waveTime) * 12 * this.scale;
+                                        
+                                        ctx.beginPath();
+                                        ctx.moveTo(x + offsetX, this.y);
+                                        
+                                        let lastX = x + offsetX;
+                                        let lastY = this.y;
+                                        
+                                        for(let j = 0; j < 4; j++) {
+                                            const segmentHeight = this.height/5 * heightFactor;
+                                            const ctrlX = lastX + wobble * ((j % 2 === 0) ? 1 : -1);
+                                            const ctrlY = lastY - segmentHeight/2;
+                                            lastY -= segmentHeight;
+                                            
+                                            ctx.quadraticCurveTo(ctrlX, ctrlY, lastX, lastY);
+                                        }
+                                        
+                                        ctx.stroke();
+                                    }
+                                    break;
+                                    
+                                case "珊瑚":
+                                    ctx.fillStyle = "#ff6699";
+                                    
+                                    // 珊瑚主体
+                                    ctx.beginPath();
+                                    ctx.ellipse(x, this.y, this.width/3, this.height/4, 0, 0, Math.PI * 2);
+                                    ctx.fill();
+                                    
+                                    // 分支
+                                    const branches = 5;
+                                    for(let i = 0; i < branches; i++) {
+                                        const angle = (i / branches) * Math.PI - Math.PI/2;
+                                        const length = (0.5 + Math.random() * 0.5) * this.height/2;
+                                        
+                                        ctx.beginPath();
+                                        ctx.moveTo(x, this.y);
+                                        ctx.lineTo(
+                                            x + Math.cos(angle) * length,
+                                            this.y + Math.sin(angle) * length
+                                        );
+                                        ctx.lineWidth = 5 * this.scale;
+                                        ctx.stroke();
+                                        
+                                        // 分支末端小球
+                                        ctx.beginPath();
+                                        ctx.arc(
+                                            x + Math.cos(angle) * length,
+                                            this.y + Math.sin(angle) * length,
+                                            3 * this.scale,
+                                            0, Math.PI * 2
+                                        );
+                                        ctx.fill();
+                                    }
+                                    break;
+                            }
+                            break;
+                    }
+                    
+                    ctx.restore();
+                }
+            }
+            
+            // 游戏对象
+            let obstacles = [];
+
+            let powerUps = [];
+            let interactables = [];
+            let decorations = [];
+            let effects = [];
+            
+            // 生成游戏元素
+            function generateLevel() {
+                obstacles = [];
+		coins.length = 0;  
+                powerUps = [];
+                interactables = [];
+                decorations = [];
+                
+                let position = 600;
+                
+                // 生成600米长的关卡
+                while (position < 20000) {
+                    // 每隔一段距离改变场景
+                    if (position % 5000 === 0) {
+                        currentScene = (currentScene + 1) % SCENES.length;
+                    }
+                    
+                    // 障碍物
+                    if (Math.random() < 0.2) {
+                        const type = SCENES[currentScene].obstacles[Math.floor(Math.random() * SCENES[currentScene].obstacles.length)];
+                        obstacles.push(new Obstacle(position, type, currentScene));
+                        position += 300 + Math.random() * 300;
+                    }
+                    
+                    // 硬币
+                    if (Math.random() < 0.3) {
+                        // 有时候生成一串硬币
+                        if (Math.random() < 0.5) {
+                            const coinCount = 3 + Math.floor(Math.random() * 5);
+                            const coinY = canvas.height - 100 - Math.random() * 200;
+                            
+                            for (let i = 0; i < coinCount; i++) {
+                                const value = Math.random() < 0.9 ? 1 : (Math.random() < 0.7 ? 5 : 10);
+                                coins.push(new Coin(position + i * 60, coinY, value));
+                            }
+                            
+                            position += coinCount * 60 + 100;
+                        } else {
+                            // 单个硬币
+                            const value = Math.random() < 0.9 ? 1 : (Math.random() < 0.7 ? 5 : 10);
+                            coins.push(new Coin(position, null, value));
+                            position += 150;
+                        }
+                    }
+                    
+                    // 道具
+                    if (Math.random() < 0.05) {
+                        powerUps.push(new PowerUp(position));
+                        position += 400;
+                    }
+                    
+                    // 互动物体
+                    if (Math.random() < 0.08) {
+                        interactables.push(new Interactable(position));
+                        position += 600;
+                    }
+                    
+                    // 装饰物
+                    if (Math.random() < 0.4) {
+                        const type = SCENES[currentScene].decorations[Math.floor(Math.random() * SCENES[currentScene].decorations.length)];
+                        // 一些在前景，一些在背景
+                        const layer = Math.random() < 0.6 ? 1 : 0;
+                        decorations.push(new Decoration(position, type, currentScene, layer));
+                        position += 100 + Math.random() * 200;
+                    }
+                    
+                    position += 100 + Math.random() * 100;
+                }
+            }
+            
+            // 绘制背景
+            function drawBackground() {
+                // 天空
+                const scene = SCENES[currentScene];
+                ctx.fillStyle = scene.bgColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 云朵
+                ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                for (let i = 0; i < 10; i++) {
+                    const x = (i * 300 + scrollOffset * 0.2) % (canvas.width + 300) - 100;
+                    const y = 50 + i * 20;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 30, 0, Math.PI * 2);
+                    ctx.arc(x + 25, y - 10, 30, 0, Math.PI * 2);
+                    ctx.arc(x + 50, y, 30, 0, Math.PI * 2);
+                    ctx.arc(x + 25, y + 10, 30, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // 背景装饰
+                decorations.filter(d => d.layer === 0).forEach(d => d.draw());
+                
+                // 地面
+                ctx.fillStyle = scene.floorColor;
+                ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+                
+                // 地面纹理
+                ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
+                ctx.lineWidth = 2;
+                for (let i = 0; i < canvas.width; i += 30) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, canvas.height - 40);
+                    ctx.lineTo(i, canvas.height);
+                    ctx.stroke();
+                }
+            }
+            
+            // 更新游戏
+            function updateGame() {
+                if (currentState === GAME_STATE.PLAYING) {
+                    // 更新玩家
+                    player.update();
+                    
+                    // 增加分数
+                    score += gameSpeed * 0.1;
+                    scoreDisplay.textContent = `得分: ${Math.floor(score)}`;
+                    
+                    // 增加滚动偏移
+                    scrollOffset += gameSpeed;
+                    
+                    // 更新硬币
+                    coins.forEach(coin => coin.update());
+                    
+                    // 更新道具
+                    powerUps.forEach(powerUp => powerUp.update());
+                    
+                    // 检查碰撞
+                    // 障碍物碰撞
+                    for (let obstacle of obstacles) {
+                        if (obstacle.checkCollision(player)) {
+                            gameOver();
+                            playSound("crash");
+                        }
+                    }
+                    
+                    // 硬币收集
+                    coins.forEach(coin => coin.checkCollision(player));
+                    
+                    // 道具收集
+                    powerUps.forEach(powerUp => powerUp.checkCollision(player));
+                    
+                    // 更新视觉效果
+                    effects.forEach(effect => effect.update());
+                    
+                    // 移除完成的效果
+                    effects = effects.filter(effect => !effect.isFinished());
+                    
+                    // 游戏难度随时间增加
+                    if (score > 1000 && Math.floor(score / 1000) > Math.floor((score - gameSpeed * 0.1) / 1000)) {
+                        if (!player.powerUp) gameSpeed += 0.5;
+                    }
+                    
+                    // 如果玩家速度提升道具结束，恢复正常速度
+                    if (!player.powerUp || player.powerUp !== "speedBoost") {
+                        if (gameSpeed > 5 + Math.floor(score / 1000) * 0.5) {
+                            gameSpeed = 5 + Math.floor(score / 1000) * 0.5;
+                        }
+                    }
+                    
+                    // 当玩家接近关卡尽头时，生成更多关卡
+                    if (scrollOffset > 15000) {
+                        let oldOffset = scrollOffset;
+                        scrollOffset = 0;
+                        
+                        // 调整所有物体的位置
+                        obstacles.forEach(o => o.x -= oldOffset);
+                        coins.forEach(c => c.x -= oldOffset);
+                        powerUps.forEach(p => p.x -= oldOffset);
+                        interactables.forEach(i => i.x -= oldOffset);
+                        decorations.forEach(d => d.x -= oldOffset);
+                        
+                        // 移除已经通过的物体
+                        obstacles = obstacles.filter(o => o.x > -300);
+                        coins = coins.filter(c => c.x > -300);
+                        powerUps = powerUps.filter(p => p.x > -300);
+                        interactables = interactables.filter(i => i.x > -300);
+                        decorations = decorations.filter(d => d.x > -300);
+                        
+                        // 生成更多内容
+                        generateMoreContent();
+                    }
+                }
+            }
+            
+            // 生成更多关卡内容
+            function generateMoreContent() {
+                let position = 5000;
+                
+                // 生成10000米长的额外关卡
+                while (position < 15000) {
+                    // 每隔一段距离改变场景
+                    if (position % 5000 === 0) {
+                        currentScene = (currentScene + 1) % SCENES.length;
+                    }
+                    
+                    // 障碍物
+                    if (Math.random() < 0.2) {
+                        const type = SCENES[currentScene].obstacles[Math.floor(Math.random() * SCENES[currentScene].obstacles.length)];
+                        obstacles.push(new Obstacle(position, type, currentScene));
+                        position += 300 + Math.random() * 300;
+                    }
+                    
+                    // 硬币
+                    if (Math.random() < 0.3) {
+                        // 有时候生成一串硬币
+                        if (Math.random() < 0.5) {
+                            const coinCount = 3 + Math.floor(Math.random() * 5);
+                            const coinY = canvas.height - 100 - Math.random() * 200;
+                            
+                            for (let i = 0; i < coinCount; i++) {
+                                const value = Math.random() < 0.9 ? 1 : (Math.random() < 0.7 ? 5 : 10);
+                                coins.push(new Coin(position + i * 60, coinY, value));
+                            }
+                            
+                            position += coinCount * 60 + 100;
+                        } else {
+                            // 单个硬币
+                            const value = Math.random() < 0.9 ? 1 : (Math.random() < 0.7 ? 5 : 10);
+                            coins.push(new Coin(position, null, value));
+                            position += 150;
+                        }
+                    }
+                    
+                    // 道具
+                    if (Math.random() < 0.05) {
+                        powerUps.push(new PowerUp(position));
+                        position += 400;
+                    }
+                    
+                    // 互动物体
+                    if (Math.random() < 0.08) {
+                        interactables.push(new Interactable(position));
+                        position += 600;
+                    }
+                    
+                    // 装饰物
+                    if (Math.random() < 0.4) {
+                        const type = SCENES[currentScene].decorations[Math.floor(Math.random() * SCENES[currentScene].decorations.length)];
+                        // 一些在前景，一些在背景
+                        const layer = Math.random() < 0.6 ? 1 : 0;
+                        decorations.push(new Decoration(position, type, currentScene, layer));
+                        position += 100 + Math.random() * 200;
+                    }
+                    
+                    position += 100 + Math.random() * 100;
+                }
+            }
+            
+            // 绘制游戏
+            function drawGame() {
+                // 清除画布
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 绘制背景
+                drawBackground();
+                
+                // 绘制前景装饰
+                decorations.filter(d => d.layer === 1).forEach(d => d.draw());
+                
+                // 绘制互动物体
+                interactables.forEach(item => item.draw());
+                
+                // 绘制障碍物
+                obstacles.forEach(obstacle => obstacle.draw());
+                
+                // 绘制硬币
+                coins.forEach(coin => coin.draw());
+                
+                // 绘制道具
+                powerUps.forEach(powerUp => powerUp.draw());
+                
+                // 绘制玩家
+                player.draw();
+                
+                // 绘制视觉效果
+                effects.forEach(effect => effect.draw());
+            }
+            
+            // 播放声音效果
+            function playSound(type) {
+                // 简单实现声音效果
+                // 在实际游戏中你可能需要加载更好的音效文件
+                let audio;
+                switch(type) {
+                    case "jump":
+                        audio = new Audio("jw.MP3");
+                        audio.volume = 0.2;
+                        break;
+                    case "slide":
+                        audio = new Audio("nzgsmy.MP3");
+                        audio.volume = 0.2;
+                        break;
+                    case "coin":
+                        audio = new Audio("jb.MP3");
+                        audio.volume = 0.3;
+                        break;
+                    case "powerup": //开局
+                        audio = new Audio("pdx.MP3");
+                        audio.volume = 0.3;
+                        break;
+                    case "crash":
+                        audio = new Audio("zj.MP3");
+                        audio.volume = 0.4;
+                        break;
+                    case "special":// 空格
+                        audio = new Audio("hkp.MP3");
+                        audio.volume = 0.3;
+                        break;
+                    case "interact": // 
+                        audio = new Audio("wsbs.MP3");
+                        audio.volume = 0.3;
+                        break;
+                }
+                
+                if (audio) {
+                    audio.play().catch(e => console.log("Audio play failed:", e));
+                }
+            }
+            
+            // 游戏循环
+            function gameLoop() {
+                updateGame();
+                drawGame();
+                requestAnimationFrame(gameLoop);
+            }
+            
+            // 开始游戏
+            function startGame() {
+                currentState = GAME_STATE.PLAYING;
+                score = 0;
+                coins.length = 0;
+                gameSpeed = 2;
+                scrollOffset = 0;
+                collectedCoinsCount = 0; // <--- 重置收集的硬币数
+    coinsDisplay.textContent = collectedCoinsCount; // <--- 更新硬币显示为 0
+    scoreDisplay.textContent = "得分: 0";
+                
+                // 重置玩家
+                player.x = canvas.width / 4;
+                player.y = canvas.height - 150;
+                player.velY = 0;
+                player.velX = 0;
+                player.isJumping = false;
+                player.isSliding = false;
+                player.isSpecialAction = false;
+                player.powerUp = null;
+                player.powerUpTime = 0;
+                player.invincible = false;
+                player.expression = "normal";
+                
+                // 生成关卡
+                generateLevel();
+                
+                // 隐藏开始和游戏结束屏幕
+                startScreen.style.display = "none";
+                gameOverScreen.style.display = "none";
+                
+                // 播放开始游戏音效
+                playSound("powerup");
+
+            }
+            
+            // 游戏结束
+            function gameOver() {
+                currentState = GAME_STATE.GAME_OVER;
+                
+                // 更新最高分
+                if (score > highScore) {
+                    highScore = Math.floor(score);
+                    localStorage.setItem('highScore', highScore);
+                }
+                
+                // 显示最终得分
+                // gameOverScoreDisplay.textContent = `得分: ${Math.floor(score)} | 硬币: ${coins}`;
+		gameOverScoreDisplay.textContent = `得分: ${Math.floor(score)} 		| 硬币: ${collectedCoinsCount}`; // <--- 使用新变量
+                
+                // 显示游戏结束屏幕
+                gameOverScreen.style.display = "flex";
+            }
+            
+            // 返回主菜单
+            function returnToMainMenu() {
+                currentState = GAME_STATE.START_SCREEN;
+                startScreen.style.display = "flex";
+                gameOverScreen.style.display = "none";
+                highScoreDisplay.textContent = `最高分: ${highScore}`;
+            }
+            
+            // 按钮事件监听
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+            mainMenuButton.addEventListener('click', returnToMainMenu);
+            
+            // 键盘控制
+            const keys = {};
+            
+            document.addEventListener('keydown', function(e) {
+                keys[e.code] = true;
+                
+                if (currentState === GAME_STATE.PLAYING) {
+                    if ((e.code === 'ArrowUp' || e.code === 'KeyW') && !keys.jumping) {
+                        player.jump();
+                        keys.jumping = true;
+                    }
+                    
+                    if ((e.code === 'ArrowDown' || e.code === 'KeyS') && !keys.sliding) {
+                        player.slide();
+                        keys.sliding = true;
+                    }
+                    
+                    if (e.code === 'Space' && !keys.special) {
+                        player.specialAction();
+                        keys.special = true;
+                    }
+                }
+            });
+            
+            document.addEventListener('keyup', function(e) {
+                keys[e.code] = false;
+                
+                if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+                    keys.jumping = false;
+                }
+                
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+                    keys.sliding = false;
+                }
+                
+                if (e.code === 'Space') {
+                    keys.special = false;
+                }
+                
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA' || 
+                    e.code === 'ArrowRight' || e.code === 'KeyD') {
+                    player.stopMoving();
+                }
+            });
+            
+            // 处理移动输入
+            function handleKeys() {
+                if (currentState === GAME_STATE.PLAYING) {
+                    if (keys['ArrowLeft'] || keys['KeyA']) {
+                        player.moveLeft();
+                    } else if (keys['ArrowRight'] || keys['KeyD']) {
+                        player.moveRight();
+                    } else {
+                        player.stopMoving();
+                    }
+                }
+                
+                requestAnimationFrame(handleKeys);
+            }
+            
+            // 移动设备控制
+            mobileLeft.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                player.moveLeft();
+            });
+            
+            mobileRight.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                player.moveRight();
+            });
+            
+            mobileJump.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                player.jump();
+            });
+            
+            mobileSlide.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                player.slide();
+            });
+            
+            mobileAction.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                player.specialAction();
+            });
+            
+            mobileLeft.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                player.stopMoving();
+            });
+            
+            mobileRight.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                player.stopMoving();
+            });
+            
+            // 触摸屏幕控制
+            let touchStartX = 0;
+            let touchStartY = 0;
+            
+            canvas.addEventListener('touchstart', function(e) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+            
+            canvas.addEventListener('touchmove', function(e) {
+                if (currentState !== GAME_STATE.PLAYING) return;
+                
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                
+                const diffX = touchX - touchStartX;
+                const diffY = touchY - touchStartY;
+                
+                // 检查是否为水平或垂直滑动
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 30) {
+                    // 水平滑动
+                    if (diffX > 0) {
+                        player.moveRight();
+                    } else {
+                        player.moveLeft();
+                    }
+                } else if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 30) {
+                    // 垂直滑动
+                    if (diffY < 0) {
+                        player.jump();
+                    } else {
+                        player.slide();
+                    }
+                    
+                    // 重置触摸点，防止连续跳跃或下滑
+                    touchStartX = touchX;
+                    touchStartY = touchY;
+                }
+            });
+            
+            canvas.addEventListener('touchend', function(e) {
+                player.stopMoving();
+            });
+            
+            // 简单的触摸控制，点击屏幕左侧向左移动，右侧向右移动
+            canvas.addEventListener('click', function(e) {
+                if (currentState === GAME_STATE.PLAYING) {
+                    const x = e.clientX;
+                    
+                    if (x < canvas.width / 2) {
+                        player.moveLeft();
+                        setTimeout(() => player.stopMoving(), 500);
+                    } else {
+                        player.moveRight();
+                        setTimeout(() => player.stopMoving(), 500);
+                    }
+                }
+            });
+            
+            // 开始游戏循环和按键处理
+            gameLoop();
+            handleKeys();
+        });
+    </script>
+</body>
+</html>
